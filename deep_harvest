@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# --- DEEP HARVESTER BANNER ---
+echo "██████╗ ███████╗███████╗██████╗     ██╗  ██╗ █████╗ ██████╗ ██╗   ██╗███████╗███████╗"
+echo "██╔══██╗██╔════╝██╔════╝██╔══██╗    ██║  ██║██╔══██╗██╔══██╗██║   ██║██╔════╝██╔════╝"
+echo "██║  ██║█████╗  █████╗  ██████╔╝    ███████║███████║██████╔╝██║   ██║███████╗███████╗"
+echo "██║  ██║██╔══╝  ██╔══╝  ██╔═══╝     ██╔══██║██╔══██║██╔══██╗╚██  ██╔╝╚════██║╚════██║"
+echo "██████╔╝███████╗███████║██║         ██║  ██║██║  ██║██║  ██║ ╚████╔╝ ███████║███████║"
+echo "                         v1.0 (Project 1 Pipeline Consumer)"
+echo "                          [ Created in Void Labs by knull ]"
+echo "----------------------------------------------------------------------------------"
+
+# 1. Prompt for Project 1's clean harvest input file
+echo -n "Enter path to Project 1 clean input (e.g., recon_yamaha-motor.com/live_domains_for_harvest.txt) > "
+read INPUT_FILE
+
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "[-] Error: File '$INPUT_FILE' not found!"
+    exit 1
+fi
+
+# Setup output directory
+OUTPUT_DIR="harvest_results"
+mkdir -p "$OUTPUT_DIR"
+
+echo "[+] Reading clean targets from $INPUT_FILE..."
+echo "[+] Starting archive harvesting via waymore..."
+
+# 2. Loop through each line supplied by Project 1 automatically
+while IFS= read -r target; do
+    # Skip empty lines
+    [ -z "$target" ] && continue
+
+    # Grab only the clean URL/domain before any spaces
+    raw_url=$(echo "$target" | cut -d' ' -f1)
+    
+    # Strip http:// or https:// prefixes and trailing slashes/paths
+    clean_target=$(echo "$raw_url" | sed 's#https\?://##' | cut -d'/' -f1)
+
+    # SAFETY CHECK: Skip raw IP addresses if any slipped through
+    if [[ "$clean_target" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "[-] Skipping IP address (archives require domain names): $clean_target"
+        continue
+    fi
+
+    echo "[*] Harvesting archives for domain: $clean_target"
+    
+    # Run waymore using clean domain input and discard stdin pipe behavior safely
+    waymore -i "$clean_target" -mode U -oU "$OUTPUT_DIR/archive_$clean_target.txt" < /dev/null
+
+done < "$INPUT_FILE"
+
+echo "[+] Batch archive harvesting complete! All results saved in '$OUTPUT_DIR/'"
